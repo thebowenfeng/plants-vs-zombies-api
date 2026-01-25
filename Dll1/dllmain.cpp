@@ -19,7 +19,14 @@ std::string helpMessage = R"(
 Available commands:
 help - Display this help message
 exit - Exit the program
-plant <rowNumber> <columnNumber> - Add a plant with validation. Only works during a level
+plant <rowNumber> <columnNumber> <seedBankIndex> - Add a plant with validation. Only works during a level.
+plantbytype <rowNumber> <columnNumber> <seedType> - Same as plant but use seedType instead of seed bank index.
+seedbank - Prints out all plant types in the seed bank currently.
+randomseeds - Selects X random seeds for the seed bank during seed selection stage.
+chooseseed <seedType> - Choose a specific plant during seed selection stage. If the plant is already added, it will remove the plant.
+getseedbankcount - Gets the number of plants currently selected during seed selection stage.
+start - Starts the game in seed selection stage. Do not use this when not in pre-level states (e.g seed selection)
+gameui - Enum value for the current game state (2 for pre-level/seed selection, 3 for in game).
 )";
 
 std::vector<std::string> readArgument() {
@@ -196,6 +203,16 @@ int getSeedPacketType(int index) {
 }
 
 /*
+Gets the current game UI state (i.e which screen is the game currently on)
+
+2 - Seed selection/waiting to start
+3 - In game
+*/
+int getGameUi() {
+    return (int)resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x91C });
+}
+
+/*
 Add plant to garden given row number, column number and seed type.
 Arguments:
     row - Integer denoting 0 indexed row number
@@ -231,6 +248,8 @@ char __usercall Board::HasConveyorBeltSeedBank@<al>(int a1@<eax>) { return false
 Plant::GetCost() { internalSeedType = seedType ... }
 */
 void addPlant(int row, int col, int seedType) {
+    if (getGameUi() != 3) return;
+
     int seedIndex = -1;
     for (int i = 0; i < getSeedBankSize(); i++) {
         if (getSeedPacketType(i) == seedType) {
@@ -273,7 +292,6 @@ void addPlant(int row, int col, int seedType) {
     std::vector<BYTE> patchGlobalConveyorBeltSeedOrig = detour((void*)hasConveyorBeltSeedBankAddr, patchGlobalHasConveyorBeltSeedBank, 6);
     std::vector<BYTE> patchPlantGetCostOrig = detour((void*)plantGetCostAddr, patchPlantGetCost, 6);
     std::vector<BYTE> patchSeedPacketIndexOrig = detour((void*)seedPacketIndexAddr, patchSeedPacketIndex, 9);
-    //std::vector<BYTE> seedWasPlantedOrig = nopBytes((void*)seedWasPlantedAddr, 30);
     std::vector<BYTE> nopCursorConditionalBeltSeedBankOrig = nopBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, 12);
 
     MouseDownWithPlant MouseDownWithPlantFunc = (MouseDownWithPlant)((DWORD)GetModuleHandle(NULL) + 0x126F0);
@@ -288,21 +306,10 @@ void addPlant(int row, int col, int seedType) {
     patchBytes((void*)boardAddPlantTypeDetourAddr, patchBoardAddPlantSeedTypeOrig);
     patchBytes((void*)hasConveyorBeltSeedBankAddr, patchGlobalConveyorBeltSeedOrig);
     patchBytes((void*)plantGetCostAddr, patchPlantGetCostOrig);
-    //patchBytes((void*)seedWasPlantedAddr, seedWasPlantedOrig);
     patchBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, nopCursorConditionalBeltSeedBankOrig);
     patchBytes((void*)seedPacketIndexAddr, patchSeedPacketIndexOrig);
 
     //Maybe proper seed packet handling (i.e wait for seed packet cooldown) is too hard because need to call a mouse pos based function for seedpacket.
-}
-
-/*
-Gets the current game UI state (i.e which screen is the game currently on)
-
-2 - Seed selection/waiting to start
-3 - In game
-*/
-int getGameUi() {
-    return (int)resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x91C });
 }
 
 /*
