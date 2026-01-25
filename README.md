@@ -22,4 +22,11 @@ TBD
 
 ## Contribution
 
-New features and changes are welcome, fork the project and raise a pull request.
+Take a look at the [high priority task backlog](https://github.com/thebowenfeng/plants-vs-zombies-api/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22high%20priority%22). These are existing,
+high priority issues that requires immediate attention and would be greatly appreciated.
+
+New features and other changes are welcome, fork the project and raise a pull request.
+
+## Feedback
+
+Use "issues" tab and use labels appropriately. For bugs, try not to use "high priority" unless its a game-breaking issue (e.g game crashing). Use "bug" label instead.
