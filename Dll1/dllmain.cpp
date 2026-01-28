@@ -14,6 +14,8 @@
 typedef int (__fastcall *MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
 typedef int(__stdcall* PickRandomSeeds)(DWORD* seedChooserPtr);
 typedef int(__thiscall* SeedChooserMouseDown)(DWORD* thisPtr, int mouseX, int mouseY, int clickCount);
+typedef int(__thiscall* GameOverDialogButtonDepress)(DWORD* thisPtr, int theId);
+typedef void(__stdcall* CutSceneUpdateZombiesWon)(DWORD* thisPtr);
 
 std::string helpMessage = R"(
 Available commands:
@@ -61,6 +63,21 @@ std::vector<BYTE> detour(void* toHook, void* ourFunc, int len) {
     DWORD temp;
     VirtualProtect(toHook, len, currProt, &temp);
     return stolenBytes;
+}
+
+void* trampolineHook(void* toHook, void* ourFunc, int len) {
+    void* orig = VirtualAlloc(NULL, len + 5, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    // Return null virtualAlloc somehow fail
+    if (orig == NULL) {
+        return NULL;
+    }
+    else {
+        memcpy(orig, toHook, len);
+        ((BYTE*)orig)[len] = 0xE9;
+        *(DWORD*)((DWORD)orig + len + 1) = ((DWORD)toHook - (DWORD)orig) - 5;
+        detour(toHook, ourFunc, len);
+        return orig;
+    }
 }
 
 std::vector<BYTE> patchBytes(void* addrToPatch, std::vector<BYTE> bytes) {
@@ -210,6 +227,17 @@ Gets the current game UI state (i.e which screen is the game currently on)
 */
 int getGameUi() {
     return (int)resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x91C });
+}
+
+/*
+Gets the current game result
+
+0 - none (in progress)
+1 - won
+2 - lost
+*/
+int getGameResult() {
+    return (int)resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x9A8 });
 }
 
 /*
@@ -396,6 +424,62 @@ void addPlantBySeedIndex(int row, int col, int seedIndex) {
     return addPlant(row, col, getSeedPacketType(seedIndex));
 }
 
+DWORD copySurvivalDialogReturnAddr = NULL;
+DWORD survivalDialogAddr = NULL;
+std::vector<BYTE> copySurvivalDialogStolenBytes;
+void __declspec(naked) copySurvivalDialogAddrPatch() {
+    __asm {
+        add esp, 0x4
+        mov DWORD PTR [esp + 0x78], eax
+        mov survivalDialogAddr, eax
+        jmp [copySurvivalDialogReturnAddr]
+    }
+}
+
+/*
+Sets a detour on DLL load to copy zombie won survival mode dialog's address that 
+can later be used to invoke level restart
+*/
+void copyZombiesWonSurvivalDialogAddr() {
+    if (copySurvivalDialogReturnAddr != NULL) return;
+
+    DWORD copyDialogAddr = (DWORD)GetModuleHandle(NULL) + 0x3FA1A;
+    copySurvivalDialogReturnAddr = copyDialogAddr + 7;
+    copySurvivalDialogStolenBytes = detour((void*)copyDialogAddr, copySurvivalDialogAddrPatch, 7);
+}
+
+/*
+Restart a survival level
+*/
+void restartSurvivalLevel() {
+    if (getGameResult() != 2) return;
+
+    GameOverDialogButtonDepress GameOverDialogButtonDepressFunc = (GameOverDialogButtonDepress)((DWORD)GetModuleHandle(NULL) + 0x5B720);
+    GameOverDialogButtonDepressFunc((DWORD*)(survivalDialogAddr + 0xA0), 1000);
+}
+
+/*
+Cleans up any non-ephemeral hooks/detours/patches on DLL exit or unload
+*/
+void cleanup() {
+    DWORD copyDialogAddr = (DWORD)GetModuleHandle(NULL) + 0x3FA1A;
+    patchBytes((void*)copyDialogAddr, copySurvivalDialogStolenBytes);
+
+    DWORD cutSceneUpdateZombieWonAddr = (DWORD)GetModuleHandle(NULL) + 0x3F650;
+    patchBytes((void*)cutSceneUpdateZombieWonAddr, std::vector<BYTE> { 0x6A, 0xFF, 0x68, 0xF7, 0xA7, 0x6C, 0x00 });
+}
+
+CutSceneUpdateZombiesWon CutSceneUpdateZombiesWonOrigFunc;
+void __stdcall hookCutSceneUpdateZombiesWon(DWORD* thisPtr) {
+    std::cout << *(int*)((DWORD)thisPtr + 0x8) << std::endl;
+    return CutSceneUpdateZombiesWonOrigFunc(thisPtr);
+}
+
+void trampHookCutSceneUpdateZombieWon() {
+    DWORD cutSceneUpdateZombieWonAddr = (DWORD)GetModuleHandle(NULL) + 0x3F650;
+    CutSceneUpdateZombiesWonOrigFunc = (CutSceneUpdateZombiesWon)trampolineHook((void*)cutSceneUpdateZombieWonAddr, hookCutSceneUpdateZombiesWon, 7);
+}
+
 int parseCommand(std::vector<std::string> command) {
     if (command.size() < 1) {
         std::cout << "Invalid command" << std::endl;
@@ -407,6 +491,7 @@ int parseCommand(std::vector<std::string> command) {
             std::cout << helpMessage << std::endl;
         }
         else if (command[0] == "exit") {
+            cleanup();
             std::cout << "Exiting..." << std::endl;
             Sleep(1000);
             return 1;
@@ -445,6 +530,12 @@ int parseCommand(std::vector<std::string> command) {
         else if (command[0] == "gameui") {
             std::cout << getGameUi() << std::endl;
         }
+        else if (command[0] == "result") {
+            std::cout << getGameResult() << std::endl;
+        }
+        else if (command[0] == "restart") {
+            restartSurvivalLevel();
+        }
         else {
             std::cout << "Unknown command or missing arguments" << std::endl;
         }
@@ -463,6 +554,9 @@ DWORD WINAPI main(HMODULE hModule) {
     freopen_s(&f2, "CONIN$", "r", stdin);
 
     std::cout << "Debugger. Enter \"help\" for more" << std::endl;
+
+    copyZombiesWonSurvivalDialogAddr();
+    trampHookCutSceneUpdateZombieWon();
 
     while (true) {
         std::cout << ">";
@@ -490,8 +584,11 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_PROCESS_ATTACH:
         CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)main, hModule, 0, nullptr));
     case DLL_THREAD_ATTACH:
+        break;
     case DLL_THREAD_DETACH:
+        break;
     case DLL_PROCESS_DETACH:
+        cleanup();
         break;
     }
     return TRUE;
