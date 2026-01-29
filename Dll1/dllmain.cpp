@@ -16,6 +16,7 @@ typedef int(__stdcall* PickRandomSeeds)(DWORD* seedChooserPtr);
 typedef int(__thiscall* SeedChooserMouseDown)(DWORD* thisPtr, int mouseX, int mouseY, int clickCount);
 typedef int(__thiscall* GameOverDialogButtonDepress)(DWORD* thisPtr, int theId);
 typedef void(__stdcall* CutSceneUpdateZombiesWon)(DWORD* thisPtr);
+typedef int(__thiscall* SeedChooserScreenDraw)(int thisPtr, int a2);
 
 std::string helpMessage = R"(
 Available commands:
@@ -467,17 +468,43 @@ void cleanup() {
 
     DWORD cutSceneUpdateZombieWonAddr = (DWORD)GetModuleHandle(NULL) + 0x3F650;
     patchBytes((void*)cutSceneUpdateZombieWonAddr, std::vector<BYTE> { 0x6A, 0xFF, 0x68, 0xF7, 0xA7, 0x6C, 0x00 });
+
+    DWORD seedChooserScreenDraw = (DWORD)GetModuleHandle(NULL) + 0x8F2F0;
+    patchBytes((void*)seedChooserScreenDraw, std::vector<BYTE> { 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
 }
 
+/*
+Callback that fires when zombies win (only when cutscene is over)
+*/
 CutSceneUpdateZombiesWon CutSceneUpdateZombiesWonOrigFunc;
 void __stdcall hookCutSceneUpdateZombiesWon(DWORD* thisPtr) {
-    std::cout << *(int*)((DWORD)thisPtr + 0x8) << std::endl;
+    std::cout << *(int*)((DWORD)thisPtr + 0x8) << std::endl; // print cutscene time
     return CutSceneUpdateZombiesWonOrigFunc(thisPtr);
 }
 
+/*
+Hooks into CutScene::UpdateZombiesWon
+*/
 void trampHookCutSceneUpdateZombieWon() {
     DWORD cutSceneUpdateZombieWonAddr = (DWORD)GetModuleHandle(NULL) + 0x3F650;
     CutSceneUpdateZombiesWonOrigFunc = (CutSceneUpdateZombiesWon)trampolineHook((void*)cutSceneUpdateZombieWonAddr, hookCutSceneUpdateZombiesWon, 7);
+}
+
+/*
+Callback that fires when seed chooser screen draws
+*/
+SeedChooserScreenDraw SeedChooserScreenDrawOrigFunc;
+int __fastcall hookSeedChooserScreenDraw(int thisPtr, int unused, int a2) {
+    std::cout << resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0x174, 0x8 }) << std::endl; // print mCutSceneTime
+    return SeedChooserScreenDrawOrigFunc(thisPtr, a2);
+}
+
+/*
+Hooks into SeedChooserScreen::Draw
+*/
+void trampHookCutSceneAnimateBoard() {
+    DWORD seedChooserScreenDraw = (DWORD)GetModuleHandle(NULL) + 0x8F2F0;
+    SeedChooserScreenDrawOrigFunc = (SeedChooserScreenDraw)trampolineHook((void*)seedChooserScreenDraw, hookSeedChooserScreenDraw, 6);
 }
 
 int parseCommand(std::vector<std::string> command) {
@@ -557,6 +584,7 @@ DWORD WINAPI main(HMODULE hModule) {
 
     copyZombiesWonSurvivalDialogAddr();
     trampHookCutSceneUpdateZombieWon();
+    trampHookCutSceneAnimateBoard();
 
     while (true) {
         std::cout << ">";
