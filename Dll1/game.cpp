@@ -86,7 +86,9 @@ Callback that fires when zombies win (only when cutscene is over)
 */
 CutSceneUpdateZombiesWon CutSceneUpdateZombiesWonOrigFunc;
 void __stdcall hookCutSceneUpdateZombiesWon(DWORD* thisPtr) {
-    std::cout << *(int*)((DWORD)thisPtr + 0x8) << std::endl; // print cutscene time
+    if (*(int*)((DWORD)thisPtr + 0x8) == 11000) {
+        std::cout << "Game over" << std::endl;
+    }
     return CutSceneUpdateZombiesWonOrigFunc(thisPtr);
 }
 
@@ -101,9 +103,14 @@ void trampHookCutSceneUpdateZombieWon() {
 /*
 Callback that fires when seed chooser screen draws
 */
+int prevCutsceneTime = 0;
 SeedChooserScreenDraw SeedChooserScreenDrawOrigFunc;
 int __fastcall hookSeedChooserScreenDraw(int thisPtr, int unused, int a2) {
-    std::cout << resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0x174, 0x8 }) << std::endl; // print mCutSceneTime
+    int currCutsceneTime = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0x174, 0x8 });
+    if (currCutsceneTime == 4250 && prevCutsceneTime < 4250) {
+        std::cout << "Choose seeds" << std::endl;
+    }
+    prevCutsceneTime = currCutsceneTime;
     return SeedChooserScreenDrawOrigFunc(thisPtr, a2);
 }
 

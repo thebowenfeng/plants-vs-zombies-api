@@ -135,8 +135,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\..\Downloads\httplib.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="game.h" />
+    <ClInclude Include="httpserver.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="plant.h" />
@@ -145,6 +147,7 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="game.cpp" />
+    <ClCompile Include="httpserver.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

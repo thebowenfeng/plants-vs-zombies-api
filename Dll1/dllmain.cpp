@@ -1,5 +1,6 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "pch.h"
+#include "httpserver.h"
 #include <iostream>
 #include <psapi.h>
 #include <winnt.h>
@@ -14,6 +15,7 @@
 #include "game.h"
 #include "plant.h"
 #include "seed.h"
+
 
 std::string helpMessage = R"(
 Available commands:
@@ -58,6 +60,8 @@ void cleanup() {
 
     DWORD seedChooserScreenDraw = (DWORD)GetModuleHandle(NULL) + 0x8F2F0;
     patchBytes((void*)seedChooserScreenDraw, std::vector<BYTE> { 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
+
+    server.stop();
 }
 
 int parseCommand(std::vector<std::string> command) {
@@ -133,6 +137,8 @@ DWORD WINAPI main(HMODULE hModule) {
     freopen_s(&f, "CONOUT$", "w", stdout);
     freopen_s(&f2, "CONIN$", "r", stdin);
 
+    CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)startHTTPServer, hModule, 0, nullptr);
+
     std::cout << "Debugger. Enter \"help\" for more" << std::endl;
 
     copyZombiesWonSurvivalDialogAddr();
@@ -148,6 +154,7 @@ DWORD WINAPI main(HMODULE hModule) {
         }
     }
 
+    server.stop();
     fclose(f);
     fclose(f2);
     FreeConsole();
