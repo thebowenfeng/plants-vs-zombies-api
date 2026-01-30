@@ -27,6 +27,8 @@ chooseseed <seedType> - Choose a specific plant during seed selection stage. If 
 getseedbankcount - Gets the number of plants currently selected during seed selection stage.
 start - Starts the game in seed selection stage. Do not use this when not in pre-level states (e.g seed selection)
 gameui - Enum value for the current game state (2 for pre-level/seed selection, 3 for in game).
+result - Enum value for the result of a finished game
+restart - Restart a finished game
 )";
 
 std::vector<std::string> readArgument() {
