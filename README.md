@@ -30,3 +30,7 @@ New features and other changes are welcome, fork the project and raise a pull re
 ## Feedback
 
 Use "issues" tab and use labels appropriately. For bugs, try not to use "high priority" unless its a game-breaking issue (e.g game crashing). Use "bug" label instead.
+
+## Credits
+
+https://github.com/yhirose/cpp-httplib for HTTP client/server library
