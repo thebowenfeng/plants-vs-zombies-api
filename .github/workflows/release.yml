@@ -2,14 +2,14 @@ name: Build and Release x86 DLL
 
 on:
   push:
-    branches: [ "master" ] # Triggers on every commit/merge to master
+    branches: [ "master" ]
 
 jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: write      # Required to create the release and upload assets
-      discussions: write   # Required for repositories with Discussions enabled
+      contents: write
+      discussions: write
 
     steps:
     - name: Checkout Code
@@ -18,24 +18,28 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
       with:
-        msbuild-architecture: x86 # Ensures the x86 compiler is used
+        msbuild-architecture: x86
 
     - name: Build DLL
       run: |
+        # Removed trailing backslash from OutDir to prevent escaping issues
         msbuild Dll1.sln `
           /p:Configuration=Release `
           /p:Platform=x86 `
-          /p:OutDir="${{ github.workspace }}\build\"
+          /p:OutDir="${{ github.workspace }}\build"
+
+    # Optional: Lists files if you need to troubleshoot the path in logs
+    - name: List files (Troubleshooting)
+      run: dir /s "${{ github.workspace }}\build"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        # Uses the build number for a unique tag (e.g., v1.0.42)
         tag_name: v1.0.${{ github.run_number }}
         name: Release v1.0.${{ github.run_number }}
         draft: false
         prerelease: false
-        # Adjust this path to wherever your DLL ends up (usually the OutDir set above)
-        files: build/YourProject.dll 
+        # Use a wildcard to find the DLL regardless of subfolder nesting
+        files: build/**/Dll1.dll 
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
