@@ -28,10 +28,6 @@ jobs:
           /p:Platform=x86 `
           /p:OutDir="${{ github.workspace }}\build"
 
-    # Optional: Lists files if you need to troubleshoot the path in logs
-    - name: List files (Troubleshooting)
-      run: dir /s "${{ github.workspace }}\build"
-
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
