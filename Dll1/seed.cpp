@@ -7,11 +7,17 @@ typedef int(__stdcall* PickRandomSeeds)(DWORD* seedChooserPtr);
 typedef int(__thiscall* SeedChooserMouseDown)(DWORD* thisPtr, int mouseX, int mouseY, int clickCount);
 
 int getSeedBankSize() {
+    int gameState = getGameUi();
+    if (!(gameState == 2 || gameState == 3 || gameState == 4 || gameState == 5)) return -1;
+
     DWORD seedBankAddr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0x15C });
     return *(int*)(seedBankAddr + 0x24);
 }
 
 int getSeedPacketType(int index) {
+    int gameState = getGameUi();
+    if (!(gameState == 2 || gameState == 3 || gameState == 4 || gameState == 5)) return -2;
+
     DWORD seedBankAddr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0x15C });
     return *(int*)(seedBankAddr + index * 0x50 + 0x5C);
 }
@@ -19,12 +25,14 @@ int getSeedPacketType(int index) {
 /*
 Internally calls SeedChooserScreen::PickRandomSeeds() that randomly picks seeds and starts the game
 */
-void chooseRandomSeeds() {
-    if (getGameUi() != 2) return;
+int chooseRandomSeeds() {
+    if (getGameUi() != 2) return 1;
 
     DWORD seedChooserPtr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x874 });
     PickRandomSeeds PickRandomSeedsFunc = (PickRandomSeeds)((DWORD)GetModuleHandle(NULL) + 0x905B0);
     PickRandomSeedsFunc((DWORD*)seedChooserPtr);
+
+    return 0;
 }
 
 /*
@@ -48,8 +56,8 @@ Internally calls SeedChooserScreen::MouseDown() but coerces seed type without us
 Arguments:
     - seedType: Enum representing the seed type that is to be selected
 */
-void chooseSeed(int seedType) {
-    if (getGameUi() != 2) return;
+int chooseSeed(int seedType) {
+    if (getGameUi() != 2) return 1;
 
     DWORD chooseSeedTypeAddr = (DWORD)GetModuleHandle(NULL) + 0x91752;
     chooseSeedType = seedType;
@@ -63,11 +71,16 @@ void chooseSeed(int seedType) {
     SeedChooserMouseDownFunc((DWORD*)seedChooserPtr, 1, 1, 1);
 
     patchBytes((void*)chooseSeedTypeAddr, chooseSeedTypeOrig);
+
+    return 0;
 }
 
 /*
 Get number of seed selected (in bank) during seed selection
 */
 int getSeedInBank() {
+    int gameState = getGameUi();
+    if (!(gameState == 2 || gameState == 3 || gameState == 4 || gameState == 5)) return -2;
+
     return (int)resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x874, 0xD3C });
 }

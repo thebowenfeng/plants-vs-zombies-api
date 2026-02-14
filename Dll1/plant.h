@@ -35,9 +35,9 @@ if ( !*(_BYTE *)(*(_DWORD *)(boardPtr + 164) + 2356)
 char __usercall Board::HasConveyorBeltSeedBank@<al>(int a1@<eax>) { return false }
 Plant::GetCost() { internalSeedType = seedType ... }
 */
-void addPlant(int row, int col, int seedType);
+int addPlant(int row, int col, int seedType);
 
 /*
 Same as addPlant() except plant by seedIndex, which is a 0-indexed value of a seed in the seedbank.
 */
-void addPlantBySeedIndex(int row, int col, int seedIndex);
+int addPlantBySeedIndex(int row, int col, int seedIndex);

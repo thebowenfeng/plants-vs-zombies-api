@@ -125,8 +125,8 @@ if ( !*(_BYTE *)(*(_DWORD *)(boardPtr + 164) + 2356)
 char __usercall Board::HasConveyorBeltSeedBank@<al>(int a1@<eax>) { return false }
 Plant::GetCost() { internalSeedType = seedType ... }
 */
-void addPlant(int row, int col, int seedType) {
-    if (getGameUi() != 3) return;
+int addPlant(int row, int col, int seedType) {
+    if (getGameUi() != 3) return 1;
 
     int seedIndex = -1;
     for (int i = 0; i < getSeedBankSize(); i++) {
@@ -136,7 +136,7 @@ void addPlant(int row, int col, int seedType) {
         }
     }
     if (seedIndex == -1) {
-        return;
+        return 2;
     }
 
     DWORD colDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127BA;
@@ -187,15 +187,15 @@ void addPlant(int row, int col, int seedType) {
     patchBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, nopCursorConditionalBeltSeedBankOrig);
     patchBytes((void*)seedPacketIndexAddr, patchSeedPacketIndexOrig);
 
-    //Maybe proper seed packet handling (i.e wait for seed packet cooldown) is too hard because need to call a mouse pos based function for seedpacket.
+    return 0;
 }
 
 /*
 Same as addPlant() except plant by seedIndex, which is a 0-indexed value of a seed in the seedbank.
 */
-void addPlantBySeedIndex(int row, int col, int seedIndex) {
+int addPlantBySeedIndex(int row, int col, int seedIndex) {
     if (seedIndex >= getSeedBankSize()) {
-        return;
+        return 2;
     }
     return addPlant(row, col, getSeedPacketType(seedIndex));
 }

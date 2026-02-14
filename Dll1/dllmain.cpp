@@ -52,8 +52,7 @@ std::vector<std::string> readArgument() {
 Cleans up any non-ephemeral hooks/detours/patches on DLL exit or unload
 */
 void cleanup() {
-    DWORD copyDialogAddr = (DWORD)GetModuleHandle(NULL) + 0x3FA1A;
-    patchBytes((void*)copyDialogAddr, copyZombiesWonSurvivalDialogStolenBytes);
+    cleanupZombieSurvivalDialogHook();
 
     DWORD cutSceneUpdateZombieWonAddr = (DWORD)GetModuleHandle(NULL) + 0x3F650;
     patchBytes((void*)cutSceneUpdateZombieWonAddr, std::vector<BYTE> { 0x6A, 0xFF, 0x68, 0xF7, 0xA7, 0x6C, 0x00 });
@@ -61,7 +60,7 @@ void cleanup() {
     DWORD seedChooserScreenDraw = (DWORD)GetModuleHandle(NULL) + 0x8F2F0;
     patchBytes((void*)seedChooserScreenDraw, std::vector<BYTE> { 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
 
-    server.stop();
+    stopServer();
 }
 
 int parseCommand(std::vector<std::string> command) {
@@ -154,7 +153,6 @@ DWORD WINAPI main(HMODULE hModule) {
         }
     }
 
-    server.stop();
     fclose(f);
     fclose(f2);
     FreeConsole();
@@ -172,11 +170,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     case DLL_PROCESS_ATTACH:
         CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)main, hModule, 0, nullptr));
     case DLL_THREAD_ATTACH:
-        break;
     case DLL_THREAD_DETACH:
-        break;
     case DLL_PROCESS_DETACH:
-        cleanup();
         break;
     }
     return TRUE;

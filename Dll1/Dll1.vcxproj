@@ -139,6 +139,7 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="httpserver.h" />
+    <ClInclude Include="jsonlib.hpp" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="plant.h" />

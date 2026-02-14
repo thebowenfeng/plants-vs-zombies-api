@@ -2,6 +2,6 @@
 
 #include "httplib.h"
 
-extern httplib::Server server;
+void stopServer();
 
 void startHTTPServer();

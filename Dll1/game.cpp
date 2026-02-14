@@ -33,8 +33,9 @@ int getGameResult() {
 Start the game when in seed selection. Internally calls SeedChooserScreen::OnStartButton()
 Note: Will crash the game if invoked improperly (i.e game isn't meant to start)
 */
-void startGame() {
-    if (getGameUi() != 2 || getSeedInBank() != getSeedBankSize()) return;
+int startGame() {
+    if (getGameUi() != 2) return 1;
+    if (getSeedInBank() != getSeedBankSize()) return 2;
 
     DWORD seedChooserOnStartAddr = (DWORD)GetModuleHandle(NULL) + 0x90200;
     DWORD seedChooserPtr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x874 });
@@ -45,6 +46,8 @@ void startGame() {
         call[seedChooserOnStartAddr]
         pop esi
     }
+
+    return 0;
 }
 
 DWORD copySurvivalDialogReturnAddr = NULL;
@@ -71,14 +74,21 @@ void copyZombiesWonSurvivalDialogAddr() {
     copyZombiesWonSurvivalDialogStolenBytes = detour((void*)copyDialogAddr, copySurvivalDialogAddrPatch, 7);
 }
 
+void cleanupZombieSurvivalDialogHook() {
+    DWORD copyDialogAddr = (DWORD)GetModuleHandle(NULL) + 0x3FA1A;
+    patchBytes((void*)copyDialogAddr, copyZombiesWonSurvivalDialogStolenBytes);
+}
+
 /*
 Restart a survival level
 */
-void restartSurvivalLevel() {
-    if (getGameResult() != 2) return;
+int restartSurvivalLevel() {
+    if (getGameResult() != 2) return 1;
 
     GameOverDialogButtonDepress GameOverDialogButtonDepressFunc = (GameOverDialogButtonDepress)((DWORD)GetModuleHandle(NULL) + 0x5B720);
     GameOverDialogButtonDepressFunc((DWORD*)(survivalDialogAddr + 0xA0), 1000);
+
+    return 0;
 }
 
 /*
