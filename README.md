@@ -44,6 +44,7 @@ Additionally, there are webhook APIs that allow the registration of callbacks to
 the payload of `{type: CALLBACK_KEY, args?: object}`. The following `CALLBACK_KEY` is supported:
 - "choose_seed" (Fired when the seed chooser screen is shown, no `args`)
 - "game_over" (Fired when a survival level is lost, and the restart level button is shown, no `args`).
+
 All webhooks are ephemeral and tied to the lifecycle of the DLL and strictly in memory. Once the DLL is ejected or the game is restarted, all webhooks must be re-registered.
 
 *Note: Currently the HTTP client does not support HTTPS request. This is feature request*
