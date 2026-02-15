@@ -4,6 +4,8 @@
 #include "plant.h"
 #include "seed.h"
 #include "game.h"
+#include "webhook.h"
+#include <regex>
 
 using json = nlohmann::json;
 
@@ -152,6 +154,70 @@ void registerRoutes() {
             default:
                 res.status = httplib::StatusCode::OK_200;
                 return;
+        }
+    });
+
+    server.Post("/api/webhook/add", [](const httplib::Request& req, httplib::Response& res) {
+        std::map<std::string, std::string> jsonBody = json::parse(req.body);
+        std::regex urlRegex("^https?://");
+        std::smatch match;
+
+        std::string callbackKey = jsonBody["callbackKey"];
+        std::string url = jsonBody["callbackUrl"];
+        if (!std::regex_search(url, match, urlRegex)) {
+            res.set_content("Invalid callback URL", "text/plain");
+            res.status = httplib::StatusCode::BadRequest_400;
+            return;
+        }
+
+        int result = 0;
+        if (callbackKey == "choose_seed") {
+            result = insertCallback(CALLBACK_KEY::CHOOSE_SEED, url);
+        }
+        else if (callbackKey == "game_over") {
+            result = insertCallback(CALLBACK_KEY::GAME_OVER, url);
+        }
+        else {
+            res.set_content("Callback key not recognised", "text/plain");
+            res.status = httplib::StatusCode::BadRequest_400;
+            return;
+        }
+
+        switch (result) {
+            case 1:
+                res.status = httplib::StatusCode::NotModified_304;
+                return;
+            default:
+                res.status = httplib::StatusCode::OK_200;
+                return;
+        }
+    });
+
+    server.Post("/api/webhook/remove", [](const httplib::Request& req, httplib::Response& res) {
+        std::map<std::string, std::string> jsonBody = json::parse(req.body);
+        std::string callbackKey = jsonBody["callbackKey"];
+        std::string url = jsonBody["callbackUrl"];
+
+        int result = 0;
+        if (callbackKey == "choose_seed") {
+            result = removeCallback(CALLBACK_KEY::CHOOSE_SEED, url);
+        }
+        else if (callbackKey == "game_over") {
+            result = removeCallback(CALLBACK_KEY::GAME_OVER, url);
+        }
+        else {
+            res.set_content("Callback key not recognised", "text/plain");
+            res.status = httplib::StatusCode::BadRequest_400;
+            return;
+        }
+
+        switch (result) {
+        case 1:
+            res.status = httplib::StatusCode::NotModified_304;
+            return;
+        default:
+            res.status = httplib::StatusCode::OK_200;
+            return;
         }
     });
 }

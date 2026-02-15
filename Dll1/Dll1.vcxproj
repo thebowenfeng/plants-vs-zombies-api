@@ -144,6 +144,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="plant.h" />
     <ClInclude Include="seed.h" />
+    <ClInclude Include="webhook.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -158,6 +159,7 @@
     </ClCompile>
     <ClCompile Include="plant.cpp" />
     <ClCompile Include="seed.cpp" />
+    <ClCompile Include="webhook.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -27,7 +27,7 @@ Not all response will return a body, however, if a body is returned, assume cont
 
 API path is from root path.
 
-| API path | Description |Body (if any)|Query params (if any)| Response (409) | Response (200)
+|API path|Description|Body (if any)|Query params (if any)|Response (409)|Response (200)
 |--|--|--|--|--|--|
 |`POST /api/plant/add`|Adds a plant onto the game board|`{row: int, col: int, index: int}`|N/A|- "Not in game" <br> - "Seed (index) does not exist"|N/A|
 |`GET /api/seed/bank/size`|Gets the current game's max seed bank size|N/A|N/A|- "Not in game"|Size of current game's seed bank as integer
@@ -39,6 +39,18 @@ API path is from root path.
 |`GET /api/game/state`|Gets current application state|N/A|N/A|N/A|Application state enum as integer
 |`GET /api/game/result`|Gets current game's result|N/A|N/A|- "Unable to get in game results" (typically not in a game)|Game's result enum as integer
 |`POST /api/game/restart`|Restarts current game|N/A|N/A|- "Game not lost"|N/A
+
+Additionally, there are webhook APIs that allow the registration of callbacks to listen to certain game events. These callbacks are registered in the form of HTTP webhooks that queried with a POST request when a certain game event happens, with
+the payload of `{type: CALLBACK_KEY, args?: object}`. The following `CALLBACK_KEY` is supported:
+- "choose_seed" (Fired when the seed chooser screen is shown, no `args`)
+- "game_over" (Fired when a survival level is lost, and the restart level button is shown, no `args`).
+
+*Note: Currently the HTTP client does not support HTTPS request. This is a work in progress*
+
+|API path|Description|Body|Response (200)|Response (400)|Response (304)
+|--|--|--|--|--|--|
+|`POST /api/webhook/add`|Register a HTTP webhook as a callback|`{callbackKey: CALLBACK_KEY, callbackUrl: string}`|N/A|- "Invalid callback Url"<br>- "Callback key not recognised"|N/A (Callback already registered)
+|`POST /api/webhook/remove`|Removes a HTTP webhook callback|`{callbackKey: CALLBACK_KEY, callbackUrl: string}`|N/A|- "Callback key not recognised"|N/A (Callback doesn't exist)
 
 ## Contribution
 

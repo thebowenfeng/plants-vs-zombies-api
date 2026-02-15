@@ -3,6 +3,7 @@
 #include "seed.h"
 #include "game.h"
 #include <iostream>
+#include "webhook.h"
 
 typedef int(__thiscall* GameOverDialogButtonDepress)(DWORD* thisPtr, int theId);
 typedef void(__stdcall* CutSceneUpdateZombiesWon)(DWORD* thisPtr);
@@ -97,7 +98,11 @@ Callback that fires when zombies win (only when cutscene is over)
 CutSceneUpdateZombiesWon CutSceneUpdateZombiesWonOrigFunc;
 void __stdcall hookCutSceneUpdateZombiesWon(DWORD* thisPtr) {
     if (*(int*)((DWORD)thisPtr + 0x8) == 11000) {
-        std::cout << "Game over" << std::endl;
+        std::cout << "Game over callback fired" << std::endl;
+        InvokeCallbackParam* param = new InvokeCallbackParam;
+        param->callbackKey = CALLBACK_KEY::GAME_OVER;
+        param->payload = "{\"type\": \"game_over\"}";
+        CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)invokeCallbacks, param, 0, nullptr);
     }
     return CutSceneUpdateZombiesWonOrigFunc(thisPtr);
 }
@@ -118,7 +123,11 @@ SeedChooserScreenDraw SeedChooserScreenDrawOrigFunc;
 int __fastcall hookSeedChooserScreenDraw(int thisPtr, int unused, int a2) {
     int currCutsceneTime = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0x174, 0x8 });
     if (currCutsceneTime == 4250 && prevCutsceneTime < 4250) {
-        std::cout << "Choose seeds" << std::endl;
+        std::cout << "Choose seeds callback fired" << std::endl;
+        InvokeCallbackParam* param = new InvokeCallbackParam;
+        param->callbackKey = CALLBACK_KEY::CHOOSE_SEED;
+        param->payload = "{\"type\": \"choose_seed\"}";
+        CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)invokeCallbacks, param, 0, nullptr);
     }
     prevCutsceneTime = currCutsceneTime;
     return SeedChooserScreenDrawOrigFunc(thisPtr, a2);

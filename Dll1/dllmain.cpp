@@ -16,7 +16,6 @@
 #include "plant.h"
 #include "seed.h"
 
-
 std::string helpMessage = R"(
 Available commands:
 help - Display this help message
