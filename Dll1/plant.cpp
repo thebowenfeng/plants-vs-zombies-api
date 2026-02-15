@@ -5,8 +5,11 @@
 #include "memory.h"
 #include "seed.h"
 #include "game.h"
+#include <mutex>
 
 typedef int(__fastcall* MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
+
+std::mutex addPlantMutex;
 
 /**
 * This is a hacky way to call Board::MouseDownWithPlant but with converted column num and row num
@@ -139,6 +142,8 @@ int addPlant(int row, int col, int seedType) {
         return 2;
     }
 
+    addPlantMutex.lock();
+
     DWORD colDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127BA;
     DWORD rowDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127C9;
     DWORD seedCursorDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127AA;
@@ -187,6 +192,7 @@ int addPlant(int row, int col, int seedType) {
     patchBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, nopCursorConditionalBeltSeedBankOrig);
     patchBytes((void*)seedPacketIndexAddr, patchSeedPacketIndexOrig);
 
+    addPlantMutex.unlock();
     return 0;
 }
 

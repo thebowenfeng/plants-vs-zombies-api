@@ -2,9 +2,13 @@
 #include <Windows.h>
 #include "memory.h"
 #include "game.h"
+#include <mutex>
 
 typedef int(__stdcall* PickRandomSeeds)(DWORD* seedChooserPtr);
 typedef int(__thiscall* SeedChooserMouseDown)(DWORD* thisPtr, int mouseX, int mouseY, int clickCount);
+
+std::mutex chooseRandSeedMutex;
+std::mutex chooseSeedMutex;
 
 int getSeedBankSize() {
     int gameState = getGameUi();
@@ -27,11 +31,13 @@ Internally calls SeedChooserScreen::PickRandomSeeds() that randomly picks seeds 
 */
 int chooseRandomSeeds() {
     if (getGameUi() != 2) return 1;
+    chooseRandSeedMutex.lock();
 
     DWORD seedChooserPtr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x874 });
     PickRandomSeeds PickRandomSeedsFunc = (PickRandomSeeds)((DWORD)GetModuleHandle(NULL) + 0x905B0);
     PickRandomSeedsFunc((DWORD*)seedChooserPtr);
 
+    chooseRandSeedMutex.unlock();
     return 0;
 }
 
@@ -58,6 +64,7 @@ Arguments:
 */
 int chooseSeed(int seedType) {
     if (getGameUi() != 2) return 1;
+    chooseSeedMutex.lock();
 
     DWORD chooseSeedTypeAddr = (DWORD)GetModuleHandle(NULL) + 0x91752;
     chooseSeedType = seedType;
@@ -72,6 +79,7 @@ int chooseSeed(int seedType) {
 
     patchBytes((void*)chooseSeedTypeAddr, chooseSeedTypeOrig);
 
+    chooseSeedMutex.unlock();
     return 0;
 }
 

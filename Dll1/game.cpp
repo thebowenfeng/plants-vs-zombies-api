@@ -4,10 +4,14 @@
 #include "game.h"
 #include <iostream>
 #include "webhook.h"
+#include <mutex>
 
 typedef int(__thiscall* GameOverDialogButtonDepress)(DWORD* thisPtr, int theId);
 typedef void(__stdcall* CutSceneUpdateZombiesWon)(DWORD* thisPtr);
 typedef int(__thiscall* SeedChooserScreenDraw)(int thisPtr, int a2);
+
+std::mutex startGameMutex;
+std::mutex restartSurvivalMutex;
 
 /*
 Gets the current game UI state (i.e which screen is the game currently on)
@@ -37,6 +41,7 @@ Note: Will crash the game if invoked improperly (i.e game isn't meant to start)
 int startGame() {
     if (getGameUi() != 2) return 1;
     if (getSeedInBank() != getSeedBankSize()) return 2;
+    startGameMutex.lock();
 
     DWORD seedChooserOnStartAddr = (DWORD)GetModuleHandle(NULL) + 0x90200;
     DWORD seedChooserPtr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x874 });
@@ -48,6 +53,7 @@ int startGame() {
         pop esi
     }
 
+    startGameMutex.unlock();
     return 0;
 }
 
@@ -85,10 +91,12 @@ Restart a survival level
 */
 int restartSurvivalLevel() {
     if (getGameResult() != 2) return 1;
+    restartSurvivalMutex.lock();
 
     GameOverDialogButtonDepress GameOverDialogButtonDepressFunc = (GameOverDialogButtonDepress)((DWORD)GetModuleHandle(NULL) + 0x5B720);
     GameOverDialogButtonDepressFunc((DWORD*)(survivalDialogAddr + 0xA0), 1000);
 
+    restartSurvivalMutex.unlock();
     return 0;
 }
 
