@@ -39,6 +39,7 @@ API path is from root path.
 |`GET /api/game/state`|Gets current application state|N/A|N/A|N/A|Application state enum as integer
 |`GET /api/game/result`|Gets current game's result|N/A|N/A|- "Unable to get in game results" (typically not in a game)|Game's result enum as integer
 |`POST /api/game/restart`|Restarts current game|N/A|N/A|- "Game not lost"|N/A
+|`POST /api/sun/auto`|Toggles auto sun collect|`{isOn: bool}`|N/A|N/A|N/A
 
 Additionally, there are webhook APIs that allow the registration of callbacks to listen to certain game events. These callbacks are registered in the form of HTTP webhooks that queried with a POST request when a certain game event happens, with
 the payload of `{type: CALLBACK_KEY, args?: object}`. The following `CALLBACK_KEY` is supported:

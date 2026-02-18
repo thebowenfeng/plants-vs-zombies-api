@@ -157,6 +157,12 @@ void registerRoutes() {
         }
     });
 
+    server.Post("/api/sun/auto", [](const httplib::Request& req, httplib::Response& res) {
+        std::map<std::string, std::string> jsonBody = json::parse(req.body);
+        toggleAutoSun(jsonBody["isOn"] == "true");
+        res.status = httplib::StatusCode::OK_200;
+    });
+
     server.Post("/api/webhook/add", [](const httplib::Request& req, httplib::Response& res) {
         std::map<std::string, std::string> jsonBody = json::parse(req.body);
         std::regex urlRegex("^https?://");

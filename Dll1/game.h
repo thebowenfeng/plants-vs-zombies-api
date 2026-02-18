@@ -37,6 +37,11 @@ Restart a survival level
 int restartSurvivalLevel();
 
 /*
+Toggle on/off auto sun collect
+*/
+void toggleAutoSun(bool isOn);
+
+/*
 Hooks into CutScene::UpdateZombiesWon
 */
 void trampHookCutSceneUpdateZombieWon();

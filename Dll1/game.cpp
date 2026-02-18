@@ -101,6 +101,19 @@ int restartSurvivalLevel() {
 }
 
 /*
+Toggle on/off auto sun collect
+*/
+void toggleAutoSun(bool isOn) {
+    BYTE* isOnCondition = (BYTE*)GetModuleHandle(NULL) + 0x342F2;
+    if (isOn) {
+        patchBytes(isOnCondition, std::vector<BYTE> { 0xEB });
+    }
+    else {
+        patchBytes(isOnCondition, std::vector<BYTE> { 0x75 });
+    }
+}
+
+/*
 Callback that fires when zombies win (only when cutscene is over)
 */
 CutSceneUpdateZombiesWon CutSceneUpdateZombiesWonOrigFunc;

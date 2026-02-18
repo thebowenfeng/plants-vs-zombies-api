@@ -30,6 +30,7 @@ start - Starts the game in seed selection stage. Do not use this when not in pre
 gameui - Enum value for the current game state (2 for pre-level/seed selection, 3 for in game).
 result - Enum value for the result of a finished game
 restart - Restart a finished game
+autosun <isOn: bool> - Toggle on auto sun collection
 )";
 
 std::vector<std::string> readArgument() {
@@ -58,6 +59,8 @@ void cleanup() {
 
     DWORD seedChooserScreenDraw = (DWORD)GetModuleHandle(NULL) + 0x8F2F0;
     patchBytes((void*)seedChooserScreenDraw, std::vector<BYTE> { 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
+
+    toggleAutoSun(false);
 
     stopServer();
 }
@@ -117,6 +120,9 @@ int parseCommand(std::vector<std::string> command) {
         }
         else if (command[0] == "restart") {
             restartSurvivalLevel();
+        }
+        else if (command[0] == "autosun" && command.size() >= 2) {
+            toggleAutoSun(command[1] == "true");
         }
         else {
             std::cout << "Unknown command or missing arguments" << std::endl;
