@@ -6,10 +6,13 @@
 #include "seed.h"
 #include "game.h"
 #include <mutex>
+#include <iostream>
 
 typedef int(__fastcall* MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
 
 std::mutex addPlantMutex;
+std::mutex addPlantByIndexMutex;
+std::mutex plantGetCostMutex;
 
 /**
 * This is a hacky way to call Board::MouseDownWithPlant but with converted column num and row num
@@ -93,6 +96,39 @@ void __declspec(naked) patchGlobalHasConveyorBeltSeedBank() {
     }
 }
 
+DWORD origPlantGetCostAddr;
+void __declspec(naked) hookPlantGetCost() {
+    __asm {
+        push ebp
+        mov ebp, esp
+        sub esp, 12
+        mov [ebp-4], eax // ebp-4 is seedType
+        mov [ebp-8], edx // ebp-8 is imitaterType
+    }
+    plantGetCostMutex.lock();
+
+    int returnValue;
+    __asm {
+        mov eax, [ebp-4]
+        mov edx, [ebp-8]
+        call [origPlantGetCostAddr]
+        mov [ebp-12], eax // ebp-12 is returnValue
+    }
+    plantGetCostMutex.unlock();
+
+    __asm {
+        mov eax, [ebp-12]
+        mov esp, ebp
+        pop ebp
+        retn
+    }
+}
+
+void trampHookPlantGetCost() {
+    DWORD plantGetCostAddr = (DWORD)GetModuleHandle(NULL) + 0x6B5C0;
+    origPlantGetCostAddr = (DWORD)trampolineHook((void*)plantGetCostAddr, hookPlantGetCost, 12);
+}
+
 /*
 Add plant to garden given row number, column number and seed type.
 Arguments:
@@ -129,7 +165,11 @@ char __usercall Board::HasConveyorBeltSeedBank@<al>(int a1@<eax>) { return false
 Plant::GetCost() { internalSeedType = seedType ... }
 */
 int addPlant(int row, int col, int seedType) {
-    if (getGameUi() != 3) return 1;
+    addPlantMutex.lock();
+    if (getGameUi() != 3) {
+        addPlantMutex.unlock();
+        return 1;
+    }
 
     int seedIndex = -1;
     for (int i = 0; i < getSeedBankSize(); i++) {
@@ -139,11 +179,11 @@ int addPlant(int row, int col, int seedType) {
         }
     }
     if (seedIndex == -1) {
+        addPlantMutex.unlock();
         return 2;
     }
 
-    addPlantMutex.lock();
-
+    plantGetCostMutex.lock();
     DWORD colDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127BA;
     DWORD rowDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127C9;
     DWORD seedCursorDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127AA;
@@ -152,7 +192,7 @@ int addPlant(int row, int col, int seedType) {
     DWORD hasConveyorBeltSeedBankAddr = (DWORD)GetModuleHandle(NULL) + 0x1EC10;
     DWORD mCursorConditionalWithBeltSeedBankCheckAddr = (DWORD)GetModuleHandle(NULL) + 0x1320C;
     DWORD seedWasPlantedAddr = (DWORD)GetModuleHandle(NULL) + 0x1347C;
-    DWORD plantGetCostAddr = (DWORD)GetModuleHandle(NULL) + 0x6B5C0;
+    DWORD plantGetCostAddr = origPlantGetCostAddr;
     DWORD seedPacketIndexAddr = (DWORD)GetModuleHandle(NULL) + 0x13482;
 
     addPlantColumnNumDetourValue = col;
@@ -176,12 +216,14 @@ int addPlant(int row, int col, int seedType) {
     std::vector<BYTE> patchPlantGetCostOrig = detour((void*)plantGetCostAddr, patchPlantGetCost, 6);
     std::vector<BYTE> patchSeedPacketIndexOrig = detour((void*)seedPacketIndexAddr, patchSeedPacketIndex, 9);
     std::vector<BYTE> nopCursorConditionalBeltSeedBankOrig = nopBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, 12);
+    plantGetCostMutex.unlock();
 
     MouseDownWithPlant MouseDownWithPlantFunc = (MouseDownWithPlant)((DWORD)GetModuleHandle(NULL) + 0x126F0);
     DWORD boardPtrAddr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868 });
 
     MouseDownWithPlantFunc(1, 1, boardPtrAddr, 1, 1);
 
+    plantGetCostMutex.lock();
     patchBytes((void*)colDetourAddr, patchPlantGridXOrig);
     patchBytes((void*)rowDetourAddr, patchPlantGridYOrig);
     patchBytes((void*)seedCursorDetourAddr, patchGetCursorSeedTypeOrig);
@@ -193,6 +235,7 @@ int addPlant(int row, int col, int seedType) {
     patchBytes((void*)seedPacketIndexAddr, patchSeedPacketIndexOrig);
 
     addPlantMutex.unlock();
+    plantGetCostMutex.unlock();
     return 0;
 }
 
@@ -200,8 +243,17 @@ int addPlant(int row, int col, int seedType) {
 Same as addPlant() except plant by seedIndex, which is a 0-indexed value of a seed in the seedbank.
 */
 int addPlantBySeedIndex(int row, int col, int seedIndex) {
-    if (seedIndex >= getSeedBankSize()) {
+    addPlantByIndexMutex.lock();
+    if (getGameUi() != 3) {
+        addPlantByIndexMutex.unlock();
+        return 1;
+    }
+    if (seedIndex >= getSeedBankSize() || seedIndex < 0) {
+        addPlantByIndexMutex.unlock();
         return 2;
     }
-    return addPlant(row, col, getSeedPacketType(seedIndex));
+    int result = addPlant(row, col, getSeedPacketType(seedIndex));
+    addPlantByIndexMutex.unlock();
+    return result;
 }
+

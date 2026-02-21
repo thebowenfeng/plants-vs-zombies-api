@@ -41,3 +41,5 @@ int addPlant(int row, int col, int seedType);
 Same as addPlant() except plant by seedIndex, which is a 0-indexed value of a seed in the seedbank.
 */
 int addPlantBySeedIndex(int row, int col, int seedIndex);
+
+void trampHookPlantGetCost();

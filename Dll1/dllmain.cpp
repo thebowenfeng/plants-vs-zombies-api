@@ -60,6 +60,9 @@ void cleanup() {
     DWORD seedChooserScreenDraw = (DWORD)GetModuleHandle(NULL) + 0x8F2F0;
     patchBytes((void*)seedChooserScreenDraw, std::vector<BYTE> { 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
 
+    DWORD plantGetCostAddr = (DWORD)GetModuleHandle(NULL) + 0x6B5C0;
+    patchBytes((void*)plantGetCostAddr, std::vector<BYTE>{ 0x8B, 0x0D, 0x70, 0x96, 0x72, 0x00, 0x8B, 0x89, 0x18, 0x09, 0x00, 0x00 });
+
     toggleAutoSun(false);
 
     stopServer();
@@ -134,7 +137,13 @@ int parseCommand(std::vector<std::string> command) {
     return 0;
 }
 
+void pureCallHandler() {
+    std::cout << "Purecall violation detected, attempting to continue..." << std::endl;
+}
+
 DWORD WINAPI main(HMODULE hModule) {
+    _set_purecall_handler(pureCallHandler);
+
     AllocConsole();
     FILE* f;
     FILE* f2;
@@ -148,6 +157,7 @@ DWORD WINAPI main(HMODULE hModule) {
     copyZombiesWonSurvivalDialogAddr();
     trampHookCutSceneUpdateZombieWon();
     trampHookCutSceneAnimateBoard();
+    trampHookPlantGetCost();
 
     while (true) {
         std::cout << ">";

@@ -14,7 +14,7 @@ httplib::Server server;
 void registerRoutes() {
     server.Put("/api/plant/add", [](const httplib::Request& req, httplib::Response& res) {
         std::map<std::string, std::string> jsonBody = json::parse(req.body);
-        int result = addPlant(std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]), std::stoi(jsonBody["index"]));
+        int result = addPlantBySeedIndex(std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]), std::stoi(jsonBody["index"]));
         switch (result) {
             case 1:
                 res.set_content("Not in game", "text/plain");
