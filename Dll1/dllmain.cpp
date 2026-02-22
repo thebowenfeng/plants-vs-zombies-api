@@ -63,6 +63,15 @@ void cleanup() {
     DWORD plantGetCostAddr = (DWORD)GetModuleHandle(NULL) + 0x6B5C0;
     patchBytes((void*)plantGetCostAddr, std::vector<BYTE>{ 0x8B, 0x0D, 0x70, 0x96, 0x72, 0x00, 0x8B, 0x89, 0x18, 0x09, 0x00, 0x00 });
 
+    DWORD func51f640Addr = (DWORD)GetModuleHandle(NULL) + 0x11F640;
+    patchBytes((void*)func51f640Addr, std::vector<BYTE>{ 0x53, 0x33, 0xDB, 0x39, 0x1D, 0xB4, 0x96, 0x72, 0x00 });
+
+    DWORD func622620Addr = (DWORD)GetModuleHandle(NULL) + 0x222620;
+    patchBytes((void*)func622620Addr, std::vector<BYTE>{ 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x18 });
+
+    DWORD func5126e0Addr = (DWORD)GetModuleHandle(NULL) + 0x1126E0;
+    patchBytes((void*)func5126e0Addr, std::vector<BYTE>{ 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
+
     toggleAutoSun(false);
 
     stopServer();
@@ -158,6 +167,9 @@ DWORD WINAPI main(HMODULE hModule) {
     trampHookCutSceneUpdateZombieWon();
     trampHookCutSceneAnimateBoard();
     trampHookPlantGetCost();
+    trampHookFunc51F640();
+    trampHookFunc622620();
+    trampHookFunc5126E0();
 
     while (true) {
         std::cout << ">";

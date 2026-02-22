@@ -9,10 +9,13 @@
 #include <iostream>
 
 typedef int(__fastcall* MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
+typedef void(__cdecl* Func51F640)(DWORD* a1);
+typedef int(__thiscall* Func622620)(DWORD* thisPtr);
+typedef void(__cdecl* Func5126E0)(int* a1, int a2, unsigned int a3, int* a4, int a5);
 
 std::mutex addPlantMutex;
 std::mutex addPlantByIndexMutex;
-std::mutex plantGetCostMutex;
+std::mutex addPlantMemoryMutex;
 
 /**
 * This is a hacky way to call Board::MouseDownWithPlant but with converted column num and row num
@@ -105,7 +108,7 @@ void __declspec(naked) hookPlantGetCost() {
         mov [ebp-4], eax // ebp-4 is seedType
         mov [ebp-8], edx // ebp-8 is imitaterType
     }
-    plantGetCostMutex.lock();
+    addPlantMemoryMutex.lock();
 
     int returnValue;
     __asm {
@@ -114,7 +117,7 @@ void __declspec(naked) hookPlantGetCost() {
         call [origPlantGetCostAddr]
         mov [ebp-12], eax // ebp-12 is returnValue
     }
-    plantGetCostMutex.unlock();
+    addPlantMemoryMutex.unlock();
 
     __asm {
         mov eax, [ebp-12]
@@ -166,8 +169,10 @@ Plant::GetCost() { internalSeedType = seedType ... }
 */
 int addPlant(int row, int col, int seedType) {
     addPlantMutex.lock();
+    addPlantMemoryMutex.lock();
     if (getGameUi() != 3) {
         addPlantMutex.unlock();
+        addPlantMemoryMutex.unlock();
         return 1;
     }
 
@@ -180,10 +185,10 @@ int addPlant(int row, int col, int seedType) {
     }
     if (seedIndex == -1) {
         addPlantMutex.unlock();
+        addPlantMemoryMutex.unlock();
         return 2;
     }
 
-    plantGetCostMutex.lock();
     DWORD colDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127BA;
     DWORD rowDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127C9;
     DWORD seedCursorDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127AA;
@@ -216,14 +221,14 @@ int addPlant(int row, int col, int seedType) {
     std::vector<BYTE> patchPlantGetCostOrig = detour((void*)plantGetCostAddr, patchPlantGetCost, 6);
     std::vector<BYTE> patchSeedPacketIndexOrig = detour((void*)seedPacketIndexAddr, patchSeedPacketIndex, 9);
     std::vector<BYTE> nopCursorConditionalBeltSeedBankOrig = nopBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, 12);
-    plantGetCostMutex.unlock();
+    addPlantMemoryMutex.unlock();
 
     MouseDownWithPlant MouseDownWithPlantFunc = (MouseDownWithPlant)((DWORD)GetModuleHandle(NULL) + 0x126F0);
     DWORD boardPtrAddr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868 });
 
     MouseDownWithPlantFunc(1, 1, boardPtrAddr, 1, 1);
 
-    plantGetCostMutex.lock();
+    addPlantMemoryMutex.lock();
     patchBytes((void*)colDetourAddr, patchPlantGridXOrig);
     patchBytes((void*)rowDetourAddr, patchPlantGridYOrig);
     patchBytes((void*)seedCursorDetourAddr, patchGetCursorSeedTypeOrig);
@@ -235,7 +240,7 @@ int addPlant(int row, int col, int seedType) {
     patchBytes((void*)seedPacketIndexAddr, patchSeedPacketIndexOrig);
 
     addPlantMutex.unlock();
-    plantGetCostMutex.unlock();
+    addPlantMemoryMutex.unlock();
     return 0;
 }
 
@@ -244,16 +249,57 @@ Same as addPlant() except plant by seedIndex, which is a 0-indexed value of a se
 */
 int addPlantBySeedIndex(int row, int col, int seedIndex) {
     addPlantByIndexMutex.lock();
+    addPlantMemoryMutex.lock();
     if (getGameUi() != 3) {
+        addPlantMemoryMutex.unlock();
         addPlantByIndexMutex.unlock();
         return 1;
     }
     if (seedIndex >= getSeedBankSize() || seedIndex < 0) {
+        addPlantMemoryMutex.unlock();
         addPlantByIndexMutex.unlock();
         return 2;
     }
+    addPlantMemoryMutex.unlock();
     int result = addPlant(row, col, getSeedPacketType(seedIndex));
     addPlantByIndexMutex.unlock();
     return result;
+}
+
+Func51F640 OrigFunc51F640;
+void __cdecl hookFunc51F640(DWORD* a1) {
+    addPlantMemoryMutex.lock();
+    OrigFunc51F640(a1);
+    addPlantMemoryMutex.unlock();
+}
+
+void trampHookFunc51F640() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x11F640;
+    OrigFunc51F640 = (Func51F640)trampolineHook((void*)addr, hookFunc51F640, 9);
+}
+
+Func622620 OrigFunc622620;
+int __fastcall hookFunc622620(DWORD* thisPtr) {
+    addPlantMemoryMutex.lock();
+    int result = OrigFunc622620(thisPtr);
+    addPlantMemoryMutex.unlock();
+    return result;
+}
+
+void trampHookFunc622620() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x222620;
+    OrigFunc622620 = (Func622620)trampolineHook((void*)addr, hookFunc622620, 6);
+}
+
+Func5126E0 OrigFunc5126E0;
+void __cdecl hookFunc5126E0(int* a1, int a2, unsigned int a3, int* a4, int a5) {
+    addPlantMemoryMutex.lock();
+    OrigFunc5126E0(a1, a2, a3, a4, a5);
+    addPlantMemoryMutex.unlock();
+}
+
+void trampHookFunc5126E0() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x1126E0;
+    OrigFunc5126E0 = (Func5126E0)trampolineHook((void*)addr, hookFunc5126E0, 5);
 }
 
