@@ -15,6 +15,7 @@
 #include "game.h"
 #include "plant.h"
 #include "seed.h"
+#include <thread>
 
 std::string helpMessage = R"(
 Available commands:
@@ -71,6 +72,9 @@ void cleanup() {
 
     DWORD func5126e0Addr = (DWORD)GetModuleHandle(NULL) + 0x1126E0;
     patchBytes((void*)func5126e0Addr, std::vector<BYTE>{ 0x55, 0x8B, 0xEC, 0x83, 0xE4, 0xF8 });
+
+    DWORD plantAnimatePumpkinAddr = (DWORD)GetModuleHandle(NULL) + 0x681B0;
+    patchBytes((void*)plantAnimatePumpkinAddr, std::vector<BYTE>{ 0x53, 0x63, 0x8B, 0xF0, 0x8B, 0x06 });
 
     toggleAutoSun(false);
 
@@ -170,6 +174,9 @@ DWORD WINAPI main(HMODULE hModule) {
     trampHookFunc51F640();
     trampHookFunc622620();
     trampHookFunc5126E0();
+    trampHookPlantAnimatePumpkin();
+
+    std::thread addPlantQueueConsumerThread(consumePlantAction);
 
     while (true) {
         std::cout << ">";

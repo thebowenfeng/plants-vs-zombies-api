@@ -7,15 +7,38 @@
 #include "game.h"
 #include <mutex>
 #include <iostream>
+#include <queue>
+#include "plant.h"
 
 typedef int(__fastcall* MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
 typedef void(__cdecl* Func51F640)(DWORD* a1);
 typedef int(__thiscall* Func622620)(DWORD* thisPtr);
 typedef void(__cdecl* Func5126E0)(int* a1, int a2, unsigned int a3, int* a4, int a5);
 
-std::mutex addPlantMutex;
-std::mutex addPlantByIndexMutex;
 std::mutex addPlantMemoryMutex;
+std::mutex plantActionQueueMutex;
+
+std::queue<AddPlant> addPlantActionQueue;
+
+void addPlantAction(AddPlant actionPayload) {
+    plantActionQueueMutex.lock();
+    addPlantActionQueue.push(actionPayload);
+    plantActionQueueMutex.unlock();
+}
+
+void consumePlantAction() {
+    while (true) {
+        if (!addPlantActionQueue.empty()) {
+            plantActionQueueMutex.lock();
+            while (!addPlantActionQueue.empty()) {
+                AddPlant currAction = addPlantActionQueue.front();
+                addPlantActionQueue.pop();
+                addPlantBySeedIndex(currAction.row, currAction.col, currAction.seedIndex);
+            }
+            plantActionQueueMutex.unlock();
+        }
+    }
+}
 
 /**
 * This is a hacky way to call Board::MouseDownWithPlant but with converted column num and row num
@@ -127,9 +150,30 @@ void __declspec(naked) hookPlantGetCost() {
     }
 }
 
-void trampHookPlantGetCost() {
-    DWORD plantGetCostAddr = (DWORD)GetModuleHandle(NULL) + 0x6B5C0;
-    origPlantGetCostAddr = (DWORD)trampolineHook((void*)plantGetCostAddr, hookPlantGetCost, 12);
+DWORD origPlantAnimatePumpkinAddr;
+void __declspec(naked) hookPlantAnimatePumpkin() {
+    __asm {
+        push ebp
+        mov ebp, esp
+        sub esp, 8
+        mov [ebp-4], eax // ebp-4 is a1 argument
+    }
+    addPlantMemoryMutex.lock();
+
+    int returnValue;
+    __asm {
+        mov eax, [ebp-4]
+        call [origPlantAnimatePumpkinAddr]
+        mov [ebp-8], eax // Return value
+    }
+    addPlantMemoryMutex.unlock();
+
+    __asm {
+        mov eax, [ebp-8]
+        mov esp, ebp
+        pop ebp
+        retn
+    }
 }
 
 /*
@@ -168,10 +212,8 @@ char __usercall Board::HasConveyorBeltSeedBank@<al>(int a1@<eax>) { return false
 Plant::GetCost() { internalSeedType = seedType ... }
 */
 int addPlant(int row, int col, int seedType) {
-    addPlantMutex.lock();
     addPlantMemoryMutex.lock();
     if (getGameUi() != 3) {
-        addPlantMutex.unlock();
         addPlantMemoryMutex.unlock();
         return 1;
     }
@@ -184,7 +226,6 @@ int addPlant(int row, int col, int seedType) {
         }
     }
     if (seedIndex == -1) {
-        addPlantMutex.unlock();
         addPlantMemoryMutex.unlock();
         return 2;
     }
@@ -199,6 +240,7 @@ int addPlant(int row, int col, int seedType) {
     DWORD seedWasPlantedAddr = (DWORD)GetModuleHandle(NULL) + 0x1347C;
     DWORD plantGetCostAddr = origPlantGetCostAddr;
     DWORD seedPacketIndexAddr = (DWORD)GetModuleHandle(NULL) + 0x13482;
+    DWORD plantAnimatePumpkinAddr = origPlantAnimatePumpkinAddr;
 
     addPlantColumnNumDetourValue = col;
     addPlantRowNumDetourValue = row;
@@ -221,6 +263,7 @@ int addPlant(int row, int col, int seedType) {
     std::vector<BYTE> patchPlantGetCostOrig = detour((void*)plantGetCostAddr, patchPlantGetCost, 6);
     std::vector<BYTE> patchSeedPacketIndexOrig = detour((void*)seedPacketIndexAddr, patchSeedPacketIndex, 9);
     std::vector<BYTE> nopCursorConditionalBeltSeedBankOrig = nopBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, 12);
+    std::vector<BYTE> patchPlantAnimatePumpkin = patchBytes((void*)plantAnimatePumpkinAddr, std::vector<BYTE> { 0xC3 });
     addPlantMemoryMutex.unlock();
 
     MouseDownWithPlant MouseDownWithPlantFunc = (MouseDownWithPlant)((DWORD)GetModuleHandle(NULL) + 0x126F0);
@@ -238,8 +281,8 @@ int addPlant(int row, int col, int seedType) {
     patchBytes((void*)plantGetCostAddr, patchPlantGetCostOrig);
     patchBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, nopCursorConditionalBeltSeedBankOrig);
     patchBytes((void*)seedPacketIndexAddr, patchSeedPacketIndexOrig);
+    patchBytes((void*)plantAnimatePumpkinAddr, patchPlantAnimatePumpkin);
 
-    addPlantMutex.unlock();
     addPlantMemoryMutex.unlock();
     return 0;
 }
@@ -248,22 +291,24 @@ int addPlant(int row, int col, int seedType) {
 Same as addPlant() except plant by seedIndex, which is a 0-indexed value of a seed in the seedbank.
 */
 int addPlantBySeedIndex(int row, int col, int seedIndex) {
-    addPlantByIndexMutex.lock();
-    addPlantMemoryMutex.lock();
     if (getGameUi() != 3) {
-        addPlantMemoryMutex.unlock();
-        addPlantByIndexMutex.unlock();
         return 1;
     }
     if (seedIndex >= getSeedBankSize() || seedIndex < 0) {
-        addPlantMemoryMutex.unlock();
-        addPlantByIndexMutex.unlock();
         return 2;
     }
-    addPlantMemoryMutex.unlock();
     int result = addPlant(row, col, getSeedPacketType(seedIndex));
-    addPlantByIndexMutex.unlock();
     return result;
+}
+
+void trampHookPlantGetCost() {
+    DWORD plantGetCostAddr = (DWORD)GetModuleHandle(NULL) + 0x6B5C0;
+    origPlantGetCostAddr = (DWORD)trampolineHook((void*)plantGetCostAddr, hookPlantGetCost, 12);
+}
+
+void trampHookPlantAnimatePumpkin() {
+    DWORD plantAnimatePumpkinAddr = (DWORD)GetModuleHandle(NULL) + 0x681B0;
+    origPlantAnimatePumpkinAddr = (DWORD)trampolineHook((void*)plantAnimatePumpkinAddr, hookPlantAnimatePumpkin, 6);
 }
 
 Func51F640 OrigFunc51F640;

@@ -14,8 +14,9 @@ httplib::Server server;
 void registerRoutes() {
     server.Put("/api/plant/add", [](const httplib::Request& req, httplib::Response& res) {
         std::map<std::string, std::string> jsonBody = json::parse(req.body);
-        int result = addPlantBySeedIndex(std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]), std::stoi(jsonBody["index"]));
-        switch (result) {
+        AddPlant actionPayload = { std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]), std::stoi(jsonBody["index"]) };
+        addPlantAction(actionPayload);
+        /*switch (result) {
             case 1:
                 res.set_content("Not in game", "text/plain");
                 res.status = httplib::StatusCode::Conflict_409;
@@ -26,7 +27,7 @@ void registerRoutes() {
                 return;
             default:
                 break;
-        }
+        }*/
         res.status = httplib::StatusCode::OK_200;
     });
 

@@ -1,5 +1,11 @@
 #pragma once
 
+typedef struct AddPlant {
+    int row;
+    int col;
+    int seedIndex;
+} AddPlant;
+
 /*
 Add plant to garden given row number, column number and seed type.
 Arguments:
@@ -49,3 +55,9 @@ void trampHookFunc51F640();
 void trampHookFunc622620();
 
 void trampHookFunc5126E0();
+
+void trampHookPlantAnimatePumpkin();
+
+void addPlantAction(AddPlant actionPayload);
+
+void consumePlantAction();
