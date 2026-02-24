@@ -76,6 +76,15 @@ void cleanup() {
     DWORD plantAnimatePumpkinAddr = (DWORD)GetModuleHandle(NULL) + 0x681B0;
     patchBytes((void*)plantAnimatePumpkinAddr, std::vector<BYTE>{ 0x53, 0x63, 0x8B, 0xF0, 0x8B, 0x06 });
 
+    DWORD hasConveyorBeltSeedBankAddr = (DWORD)GetModuleHandle(NULL) + 0x1EC10;
+    patchBytes((void*)hasConveyorBeltSeedBankAddr, std::vector<BYTE>{ 0x8B, 0x88, 0xA4, 0x00, 0x00, 0x00 });
+
+    DWORD func521b40Addr = (DWORD)GetModuleHandle(NULL) + 0x121b40;
+    patchBytes((void*)func521b40Addr, std::vector<BYTE> { 0x53, 0x56, 0x8B, 0xF1, 0x8B, 0x48, 0x08 });
+
+    DWORD func521b40NullCheckAddr = (DWORD)GetModuleHandle(NULL) + 0x121B9D;
+    patchBytes((void*)func521b40NullCheckAddr, std::vector<BYTE> { 0x8B, 0x41, 0x08, 0x85, 0xC0 });
+
     toggleAutoSun(false);
 
     stopServer();
@@ -175,6 +184,9 @@ DWORD WINAPI main(HMODULE hModule) {
     trampHookFunc622620();
     trampHookFunc5126E0();
     trampHookPlantAnimatePumpkin();
+    trampHookConveyorBeltSeedBank();
+    trampHookFunc521B40();
+    detourFunc521b40NullCheck();
 
     std::thread addPlantQueueConsumerThread(consumePlantAction);
 

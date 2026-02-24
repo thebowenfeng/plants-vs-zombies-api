@@ -61,3 +61,9 @@ void trampHookPlantAnimatePumpkin();
 void addPlantAction(AddPlant actionPayload);
 
 void consumePlantAction();
+
+void trampHookConveyorBeltSeedBank();
+
+void trampHookFunc521B40();
+
+void detourFunc521b40NullCheck();

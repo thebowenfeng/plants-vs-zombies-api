@@ -10,10 +10,16 @@
 #include <queue>
 #include "plant.h"
 
+/*
+* TODO: Plant::AnimatePumpkin 0x4681e6 add a null check here (eax + ecx = not null)
+* TODO: Plant::GetCost 0x46B65E lea eax, [eax+eax*8] mov eax, dword_71EA00[eax*4]. EAX is used as an index and corresponds to seedType. Make sure EAX isn't too high (crash dump says eax=3333332c)                       
+*/
+
 typedef int(__fastcall* MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
 typedef void(__cdecl* Func51F640)(DWORD* a1);
 typedef int(__thiscall* Func622620)(DWORD* thisPtr);
 typedef void(__cdecl* Func5126E0)(int* a1, int a2, unsigned int a3, int* a4, int a5);
+typedef int(__thiscall* Func521B40)(DWORD* thisPtr, int a2);
 
 std::mutex addPlantMemoryMutex;
 std::mutex plantActionQueueMutex;
@@ -133,7 +139,6 @@ void __declspec(naked) hookPlantGetCost() {
     }
     addPlantMemoryMutex.lock();
 
-    int returnValue;
     __asm {
         mov eax, [ebp-4]
         mov edx, [ebp-8]
@@ -160,7 +165,6 @@ void __declspec(naked) hookPlantAnimatePumpkin() {
     }
     addPlantMemoryMutex.lock();
 
-    int returnValue;
     __asm {
         mov eax, [ebp-4]
         call [origPlantAnimatePumpkinAddr]
@@ -170,6 +174,31 @@ void __declspec(naked) hookPlantAnimatePumpkin() {
 
     __asm {
         mov eax, [ebp-8]
+        mov esp, ebp
+        pop ebp
+        retn
+    }
+}
+
+DWORD origHasConveyorBeltSeedBankAddr;
+void __declspec(naked) hookHasConveyorBeltSeedBank() {
+    __asm {
+        push ebp
+        mov ebp, esp
+        sub esp, 8
+        mov [ebp-4], eax //ebp-4 is arg1
+    }
+    addPlantMemoryMutex.lock();
+
+    __asm {
+        mov eax, [ebp-4]
+        call [origHasConveyorBeltSeedBankAddr]
+        mov [ebp-8], al // Return value
+    }
+    addPlantMemoryMutex.unlock();
+
+    __asm {
+        mov al, [ebp-8]
         mov esp, ebp
         pop ebp
         retn
@@ -235,7 +264,7 @@ int addPlant(int row, int col, int seedType) {
     DWORD seedCursorDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x127AA;
     DWORD mCursorTypeDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x1339B;
     DWORD boardAddPlantTypeDetourAddr = (DWORD)GetModuleHandle(NULL) + 0x13456;
-    DWORD hasConveyorBeltSeedBankAddr = (DWORD)GetModuleHandle(NULL) + 0x1EC10;
+    DWORD hasConveyorBeltSeedBankAddr = origHasConveyorBeltSeedBankAddr;
     DWORD mCursorConditionalWithBeltSeedBankCheckAddr = (DWORD)GetModuleHandle(NULL) + 0x1320C;
     DWORD seedWasPlantedAddr = (DWORD)GetModuleHandle(NULL) + 0x1347C;
     DWORD plantGetCostAddr = origPlantGetCostAddr;
@@ -311,6 +340,11 @@ void trampHookPlantAnimatePumpkin() {
     origPlantAnimatePumpkinAddr = (DWORD)trampolineHook((void*)plantAnimatePumpkinAddr, hookPlantAnimatePumpkin, 6);
 }
 
+void trampHookConveyorBeltSeedBank() {
+    DWORD hasConveyorBeltSeedBankAddr = (DWORD)GetModuleHandle(NULL) + 0x1EC10;
+    origHasConveyorBeltSeedBankAddr = (DWORD)trampolineHook((void*)hasConveyorBeltSeedBankAddr, hookHasConveyorBeltSeedBank, 6);
+}
+
 Func51F640 OrigFunc51F640;
 void __cdecl hookFunc51F640(DWORD* a1) {
     addPlantMemoryMutex.lock();
@@ -348,3 +382,39 @@ void trampHookFunc5126E0() {
     OrigFunc5126E0 = (Func5126E0)trampolineHook((void*)addr, hookFunc5126E0, 5);
 }
 
+Func521B40 OrigFunc521B40;
+int __fastcall hookFunc521B40(DWORD* thisPtr, int unused, int a2) {
+    addPlantMemoryMutex.lock();
+    int result = OrigFunc521B40(thisPtr, a2);
+    addPlantMemoryMutex.unlock();
+}
+
+void trampHookFunc521B40() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x121B40;
+    OrigFunc521B40 = (Func521B40)trampolineHook((void*)addr, hookFunc521B40, 7);
+}
+
+DWORD func521b40NullCheckReturnAddr;
+void __declspec(naked) func521b40NullCheckHook() {
+    __asm {
+        test ecx, ecx
+        jz is_zero
+
+        not_zero:
+            mov eax, [ecx + 8]
+            jmp do_test
+
+        is_zero:
+            xor eax, eax
+
+        do_test:
+            test eax, eax
+            jmp [func521b40NullCheckReturnAddr]
+    }
+}
+
+void detourFunc521b40NullCheck() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x121B9D;
+    func521b40NullCheckReturnAddr = addr + 5;
+    detour((void*)addr, func521b40NullCheckHook, 5);
+}
