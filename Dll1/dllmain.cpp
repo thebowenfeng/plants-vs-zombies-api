@@ -85,6 +85,12 @@ void cleanup() {
     DWORD func521b40NullCheckAddr = (DWORD)GetModuleHandle(NULL) + 0x121B9D;
     patchBytes((void*)func521b40NullCheckAddr, std::vector<BYTE> { 0x8B, 0x41, 0x08, 0x85, 0xC0 });
 
+    DWORD plantAnimatePumpkinNullCheckAddr = (DWORD)GetModuleHandle(NULL) + 0x681E6;
+    patchBytes((void*)plantAnimatePumpkinNullCheckAddr, std::vector<BYTE> { 0x8B, 0x7C, 0x08, 0x44, 0x8B, 0x4E, 0x44 });
+
+    DWORD plantGetCostNullCheckAddr = (DWORD)GetModuleHandle(NULL) + 0x6B65E;
+    patchBytes((void*)plantGetCostNullCheckAddr, std::vector<BYTE> { 0x8D, 0x04, 0xC0, 0x8B, 0x04, 0x85, 0x00, 0xEA, 0x71, 0x00 });
+
     toggleAutoSun(false);
 
     stopServer();
@@ -187,8 +193,11 @@ DWORD WINAPI main(HMODULE hModule) {
     trampHookConveyorBeltSeedBank();
     trampHookFunc521B40();
     detourFunc521b40NullCheck();
+    detourPlantAnimatePumpkinNullCheck();
+    detourPlantGetCostNullCheck();
 
     std::thread addPlantQueueConsumerThread(consumePlantAction);
+    std::thread chooseSeedQueueConsumerThread(consumeChooseSeedAction);
 
     while (true) {
         std::cout << ">";

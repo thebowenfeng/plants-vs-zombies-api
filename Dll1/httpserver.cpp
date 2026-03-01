@@ -16,18 +16,6 @@ void registerRoutes() {
         std::map<std::string, std::string> jsonBody = json::parse(req.body);
         AddPlant actionPayload = { std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]), std::stoi(jsonBody["index"]) };
         addPlantAction(actionPayload);
-        /*switch (result) {
-            case 1:
-                res.set_content("Not in game", "text/plain");
-                res.status = httplib::StatusCode::Conflict_409;
-                return;
-            case 2:
-                res.set_content("Seed (index) does not exist", "text/plain");
-                res.status = httplib::StatusCode::Conflict_409;
-                return;
-            default:
-                break;
-        }*/
         res.status = httplib::StatusCode::OK_200;
     });
 
@@ -95,16 +83,9 @@ void registerRoutes() {
 
     server.Post("/api/seed/choose_seed/pick_seed", [](const httplib::Request& req, httplib::Response& res) {
         std::map<std::string, std::string> jsonBody = json::parse(req.body);
-        int result = chooseSeed(std::stoi(jsonBody["type"]));
-        switch (result) {
-            case 1:
-                res.set_content("Not choosing seeds", "text/plain");
-                res.status = httplib::StatusCode::Conflict_409;
-                return;
-            default:
-                res.status = httplib::StatusCode::OK_200;
-                return;
-        }
+        chooseSeedAction(std::stoi(jsonBody["type"]));
+        res.status = httplib::StatusCode::OK_200;
+        return;
     });
 
     server.Post("/api/game/start", [](const httplib::Request& req, httplib::Response& res) {

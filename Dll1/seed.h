@@ -22,3 +22,7 @@ int chooseSeed(int seedType);
 Get number of seed selected (in bank) during seed selection
 */
 int getSeedInBank();
+
+void chooseSeedAction(int seedType);
+
+void consumeChooseSeedAction();

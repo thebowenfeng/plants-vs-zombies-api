@@ -3,12 +3,16 @@
 #include "memory.h"
 #include "game.h"
 #include <mutex>
+#include <queue>
 
 typedef int(__stdcall* PickRandomSeeds)(DWORD* seedChooserPtr);
 typedef int(__thiscall* SeedChooserMouseDown)(DWORD* thisPtr, int mouseX, int mouseY, int clickCount);
 
 std::mutex chooseRandSeedMutex;
 std::mutex chooseSeedMutex;
+std::mutex chooseSeedActionMutex;
+
+std::queue<int> chooseSeedActionQueue;
 
 int getSeedBankSize() {
     int gameState = getGameUi();
@@ -91,4 +95,25 @@ int getSeedInBank() {
     if (!(gameState == 2 || gameState == 3 || gameState == 4 || gameState == 5)) return -2;
 
     return (int)resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x874, 0xD3C });
+}
+
+void chooseSeedAction(int seedType) {
+    chooseSeedActionMutex.lock();
+    chooseSeedActionQueue.push(seedType);
+    chooseSeedActionMutex.unlock();
+}
+
+void consumeChooseSeedAction() {
+    while (true) {
+        if (!chooseSeedActionQueue.empty()) {
+            chooseSeedActionMutex.lock();
+            while (!chooseSeedActionQueue.empty()) {
+                int seedType = chooseSeedActionQueue.front();
+                chooseSeedActionQueue.pop();
+                chooseSeed(seedType);
+            }
+            chooseSeedActionMutex.unlock();
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
 }

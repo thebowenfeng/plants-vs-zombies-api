@@ -67,3 +67,7 @@ void trampHookConveyorBeltSeedBank();
 void trampHookFunc521B40();
 
 void detourFunc521b40NullCheck();
+
+void detourPlantAnimatePumpkinNullCheck();
+
+void detourPlantGetCostNullCheck();

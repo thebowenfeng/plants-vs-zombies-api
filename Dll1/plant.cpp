@@ -10,18 +10,13 @@
 #include <queue>
 #include "plant.h"
 
-/*
-* TODO: Plant::AnimatePumpkin 0x4681e6 add a null check here (eax + ecx = not null)
-* TODO: Plant::GetCost 0x46B65E lea eax, [eax+eax*8] mov eax, dword_71EA00[eax*4]. EAX is used as an index and corresponds to seedType. Make sure EAX isn't too high (crash dump says eax=3333332c)                       
-*/
-
 typedef int(__fastcall* MouseDownWithPlant)(int clickCount, int sameAsPixelX, int boardPtr, int pixelX, int pixelY);
 typedef void(__cdecl* Func51F640)(DWORD* a1);
 typedef int(__thiscall* Func622620)(DWORD* thisPtr);
 typedef void(__cdecl* Func5126E0)(int* a1, int a2, unsigned int a3, int* a4, int a5);
 typedef int(__thiscall* Func521B40)(DWORD* thisPtr, int a2);
 
-std::mutex addPlantMemoryMutex;
+std::recursive_mutex addPlantMemoryMutex;
 std::mutex plantActionQueueMutex;
 
 std::queue<AddPlant> addPlantActionQueue;
@@ -43,6 +38,7 @@ void consumePlantAction() {
             }
             plantActionQueueMutex.unlock();
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
 
@@ -293,14 +289,12 @@ int addPlant(int row, int col, int seedType) {
     std::vector<BYTE> patchSeedPacketIndexOrig = detour((void*)seedPacketIndexAddr, patchSeedPacketIndex, 9);
     std::vector<BYTE> nopCursorConditionalBeltSeedBankOrig = nopBytes((void*)mCursorConditionalWithBeltSeedBankCheckAddr, 12);
     std::vector<BYTE> patchPlantAnimatePumpkin = patchBytes((void*)plantAnimatePumpkinAddr, std::vector<BYTE> { 0xC3 });
-    addPlantMemoryMutex.unlock();
 
     MouseDownWithPlant MouseDownWithPlantFunc = (MouseDownWithPlant)((DWORD)GetModuleHandle(NULL) + 0x126F0);
     DWORD boardPtrAddr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868 });
 
     MouseDownWithPlantFunc(1, 1, boardPtrAddr, 1, 1);
 
-    addPlantMemoryMutex.lock();
     patchBytes((void*)colDetourAddr, patchPlantGridXOrig);
     patchBytes((void*)rowDetourAddr, patchPlantGridYOrig);
     patchBytes((void*)seedCursorDetourAddr, patchGetCursorSeedTypeOrig);
@@ -387,6 +381,7 @@ int __fastcall hookFunc521B40(DWORD* thisPtr, int unused, int a2) {
     addPlantMemoryMutex.lock();
     int result = OrigFunc521B40(thisPtr, a2);
     addPlantMemoryMutex.unlock();
+    return result;
 }
 
 void trampHookFunc521B40() {
@@ -417,4 +412,43 @@ void detourFunc521b40NullCheck() {
     DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x121B9D;
     func521b40NullCheckReturnAddr = addr + 5;
     detour((void*)addr, func521b40NullCheckHook, 5);
+}
+
+DWORD plantAnimatePumpkinNullCheckReturnAddr;
+void __declspec(naked) plantAnimatePumpkinNullCheckHook() {
+    __asm {
+        lea edi, [eax+ecx]
+        test edi, edi
+        jz done
+        mov edi, [eax+ecx+44h]
+        mov ecx, [esi+44h]
+        jmp [plantAnimatePumpkinNullCheckReturnAddr]
+
+        done:
+            retn
+    }
+}
+
+void detourPlantAnimatePumpkinNullCheck() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x681E6;
+    plantAnimatePumpkinNullCheckReturnAddr = addr + 7;
+    detour((void*)addr, plantAnimatePumpkinNullCheckHook, 7);
+}
+
+void __declspec(naked) plantGetCostNullCheckHook() {
+    __asm {
+        cmp eax, 100
+        jge short_return
+        lea eax, [eax + eax * 8]
+        mov eax, DWORD PTR[eax * 4 + 0x71ea00]
+        retn
+
+        short_return:
+            retn
+    }
+}
+
+void detourPlantGetCostNullCheck() {
+    DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x6B65E;
+    detour((void*)addr, plantGetCostNullCheckHook, 10);
 }

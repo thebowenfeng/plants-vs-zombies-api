@@ -10,8 +10,9 @@ typedef int(__thiscall* GameOverDialogButtonDepress)(DWORD* thisPtr, int theId);
 typedef void(__stdcall* CutSceneUpdateZombiesWon)(DWORD* thisPtr);
 typedef int(__thiscall* SeedChooserScreenDraw)(int thisPtr, int a2);
 
-std::mutex startGameMutex;
-std::mutex restartSurvivalMutex;
+std::recursive_mutex startGameMutex;
+std::recursive_mutex restartSurvivalMutex;
+std::mutex onZombiesWonCallbackMutex;
 
 /*
 Gets the current game UI state (i.e which screen is the game currently on)
@@ -116,15 +117,22 @@ void toggleAutoSun(bool isOn) {
 /*
 Callback that fires when zombies win (only when cutscene is over)
 */
+bool hasCalled = false;
 CutSceneUpdateZombiesWon CutSceneUpdateZombiesWonOrigFunc;
 void __stdcall hookCutSceneUpdateZombiesWon(DWORD* thisPtr) {
-    if (*(int*)((DWORD)thisPtr + 0x8) == 11000) {
+    onZombiesWonCallbackMutex.lock();
+    if (*(int*)((DWORD)thisPtr + 0x8) == 11000 && !hasCalled) {
+        hasCalled = true;
         std::cout << "Game over callback fired" << std::endl;
         InvokeCallbackParam* param = new InvokeCallbackParam;
         param->callbackKey = CALLBACK_KEY::GAME_OVER;
         param->payload = "{\"type\": \"game_over\"}";
         CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)invokeCallbacks, param, 0, nullptr);
     }
+    else {
+        hasCalled = false;
+    }
+    onZombiesWonCallbackMutex.unlock();
     return CutSceneUpdateZombiesWonOrigFunc(thisPtr);
 }
 

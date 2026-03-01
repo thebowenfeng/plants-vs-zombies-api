@@ -29,12 +29,12 @@ API path is from root path.
 
 |API path|Description|Body (if any)|Query params (if any)|Response (409)|Response (200)
 |--|--|--|--|--|--|
-|`PUT /api/plant/add`|Adds a plant onto the game board|`{row: int, col: int, index: int}`|N/A|N/A (executely async, will fail silently)|N/A|
+|`PUT /api/plant/add`|Adds a plant onto the game board|`{row: int, col: int, index: int}`|N/A|N/A (executed async, will fail silently)|N/A|
 |`GET /api/seed/bank/size`|Gets the current game's max seed bank size|N/A|N/A|- "Not in game"|Size of current game's seed bank as integer
 |`GET /api/seed/bank/selection/type`|Gets the current game's seed bank's seed type by index|N/A|index: int|- "Not in game"|Seed type as integer
 |`GET /api/seed/bank/selection/size`|Gets the current game's seed bank's current size (how many seeds are selected). This API only make sense during seed selection stage|N/A|N/A|- "Not in game"|Seed bank size as integer
 |`POST /api/seed/choose_seed/random`|Choose random seeds during seed selection and start game|N/A|N/A|- "Not choosing seeds"|N/A
-|`POST /api/seed/choose_seed/pick_seed`|Pick a specific seed by seed type|`{type: int}`|N/A|- "Not choosing seeds"|N/A
+|`POST /api/seed/choose_seed/pick_seed`|Pick a specific seed by seed type|`{type: int}`|N/A|N/A (executed async, will fail silently)|N/A
 |`POST /api/game/start`|Starts game|N/A|N/A|- "Not choosing seeds"<br>- "Not enough seeds chosen"|N/A
 |`GET /api/game/state`|Gets current application state|N/A|N/A|N/A|Application state enum as integer
 |`GET /api/game/result`|Gets current game's result|N/A|N/A|- "Unable to get in game results" (typically not in a game)|Game's result enum as integer
