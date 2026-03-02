@@ -452,3 +452,26 @@ void detourPlantGetCostNullCheck() {
     DWORD addr = (DWORD)GetModuleHandle(NULL) + 0x6B65E;
     detour((void*)addr, plantGetCostNullCheckHook, 10);
 }
+
+std::vector<DWORD> getAllPlants() {
+    DWORD arrayAddr = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0xC4 });
+    int arraySize = resolveMultiLevelPointer(std::vector<DWORD> { (DWORD)GetModuleHandle(NULL) + 0x329670, 0x868, 0xC8 });
+    std::vector<DWORD> results;
+    for (int i = 0; i < arraySize; i++) {
+        DWORD currAddr = arrayAddr + i * 0x14C;
+        results.push_back(currAddr);
+    }
+    return results;
+}
+
+void removePlant(int row, int col) {
+    std::vector<DWORD> plants = getAllPlants();
+    for (int i = 0; i < plants.size(); i++) {
+        DWORD currPlant = plants[i];
+        int plantRow = *(int*)(currPlant + 0x1C);
+        int plantCol = *(int*)(currPlant + 0x28);
+        if (plantRow == row && plantCol == col) {
+            *(BYTE*)(currPlant + 0x141) = 1;
+        }
+    }
+}

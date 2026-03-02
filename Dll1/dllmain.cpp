@@ -32,6 +32,8 @@ gameui - Enum value for the current game state (2 for pre-level/seed selection, 
 result - Enum value for the result of a finished game
 restart - Restart a finished game
 autosun <isOn: bool> - Toggle on auto sun collection
+getallplants - Prints all plants in plants array with their type as ints
+removeplant <rowNumber> <columnNumber> - Removes a plant at row and column.
 )";
 
 std::vector<std::string> readArgument() {
@@ -154,6 +156,17 @@ int parseCommand(std::vector<std::string> command) {
         }
         else if (command[0] == "autosun" && command.size() >= 2) {
             toggleAutoSun(command[1] == "true");
+        }
+        else if (command[0] == "getallplants") {
+            std::vector<DWORD> allPlants = getAllPlants();
+            for (int i = 0; i < allPlants.size(); i++) {
+                DWORD currPlant = allPlants[i];
+                std::cout << *(int*)(currPlant + 0x24) << " ";
+            }
+            std::cout << std::endl;
+        }
+        else if (command[0] == "removeplant" && command.size() >= 3) {
+            removePlant(std::stoi(command[1]), std::stoi(command[2]));
         }
         else {
             std::cout << "Unknown command or missing arguments" << std::endl;

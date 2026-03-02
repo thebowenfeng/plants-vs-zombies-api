@@ -71,3 +71,7 @@ void detourFunc521b40NullCheck();
 void detourPlantAnimatePumpkinNullCheck();
 
 void detourPlantGetCostNullCheck();
+
+std::vector<DWORD> getAllPlants();
+
+void removePlant(int row, int col);
