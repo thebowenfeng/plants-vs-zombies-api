@@ -16,6 +16,7 @@
 #include "plant.h"
 #include "seed.h"
 #include <thread>
+#include "zombie.h"
 
 std::string helpMessage = R"(
 Available commands:
@@ -34,6 +35,7 @@ restart - Restart a finished game
 autosun <isOn: bool> - Toggle on auto sun collection
 getallplants - Prints all plants in plants array with their type as ints
 removeplant <rowNumber> <columnNumber> - Removes a plant at row and column.
+addzombie <rowNumber> <type> - Adds a zombie of type on a specific row
 )";
 
 std::vector<std::string> readArgument() {
@@ -167,6 +169,9 @@ int parseCommand(std::vector<std::string> command) {
         }
         else if (command[0] == "removeplant" && command.size() >= 3) {
             removePlant(std::stoi(command[1]), std::stoi(command[2]));
+        }
+        else if (command[0] == "addzombie" && command.size() >= 3) {
+            addZombie(std::stoi(command[1]), std::stoi(command[2]));
         }
         else {
             std::cout << "Unknown command or missing arguments" << std::endl;

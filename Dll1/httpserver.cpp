@@ -6,6 +6,7 @@
 #include "game.h"
 #include "webhook.h"
 #include <regex>
+#include "zombie.h"
 
 using json = nlohmann::json;
 
@@ -16,6 +17,27 @@ void registerRoutes() {
         std::map<std::string, std::string> jsonBody = json::parse(req.body);
         AddPlant actionPayload = { std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]), std::stoi(jsonBody["index"]) };
         addPlantAction(actionPayload);
+        res.status = httplib::StatusCode::OK_200;
+    });
+
+    server.Delete("/api/plant/remove", [](const httplib::Request& req, httplib::Response& res) {
+        std::map<std::string, std::string> jsonBody = json::parse(req.body);
+        removePlant(std::stoi(jsonBody["row"]), std::stoi(jsonBody["col"]));
+        res.status = httplib::StatusCode::OK_200;
+    });
+
+    server.Put("/api/zombie/add", [](const httplib::Request& req, httplib::Response& res) {
+        std::map<std::string, std::string> jsonBody = json::parse(req.body);
+        switch (addZombie(std::stoi(jsonBody["row"]), std::stoi(jsonBody["type"]))) {
+            case 1:
+                res.set_content("Invalid zombie type", "text/plain");
+                res.status = httplib::Conflict_409;
+                return;
+            case 2:
+                res.set_content("Not in game", "text/plain");
+                res.status = httplib::StatusCode::Conflict_409;
+                return;
+        }
         res.status = httplib::StatusCode::OK_200;
     });
 
